@@ -9,9 +9,8 @@ import datetime
 # clear cart
 # referral
 
-uri = "mongodb+srv://bot:<password>@botdb-sco3f.mongodb.net/test?retryWrites=true&w=majority"
-conn_password = "chachaji"
-conn_string = uri.replace("<password>", conn_password)
+uri = uri = os.getenv('uri')
+conn_password = os.getenv('dbpass')
 
 client = pymongo.MongoClient(conn_string)
 user_db = client['users'].posts
