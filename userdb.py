@@ -5,11 +5,6 @@ import vegetables
 import datetime
 import os
 
-### Todo
-# Cart last updated timestamp
-# clear cart
-# referral
-
 uri = uri = os.getenv('uri')
 conn_password = os.getenv('dbpass')
 
@@ -19,10 +14,13 @@ order_db = client['orders'].posts
 
 class UserDB:
 
-    def __init__(self, user_id, orders=[], cart=[]):
+    def __init__(self, user_id, orders=[], cart=[], referrals=0, discount_availed=0, cart_last_updated=datetime.datetime.utcnow()):
         self.user_id = user_id
         self.cart = cart
         self.orders = orders
+        self.referrals = referrals
+        self.discount_availed = discount_availed
+        self.cart_last_updated = cart_last_updated
 ##        self.new_order = new_order
         
     def create_user(self, dic):
@@ -32,7 +30,10 @@ class UserDB:
         post_data = {
             'user_id':self.user_id,
             'cart':self.cart,
-            'orders':self.orders
+            'orders':self.orders,
+            'no_of_referrals': self.referrals,
+            'discount_availed': self.discount_availed,
+            'cart_last_updated': self.cart_last_updated
 ##            'new':self.new_order
             }
 
@@ -40,7 +41,7 @@ class UserDB:
 
     
     def __str__(self):
-        return f'user_id:{self.user_id}\ncart:{self.cart}\norders:{self.orders}'      
+        return f'user_id:{self.user_id}\ncart:{self.cart}\norders:{self.orders}\nno_0f_referrals:{self.referrals}\ndiscount_availed:{self.discount_availed}\ncart_last_updated:{self.cart_last_updated}'      
         
         
 
@@ -86,14 +87,14 @@ def get_user(user_id):
         if i==0:
             continue
         data[item] = cursor[item]
-    return UserDB(user_id=data['user_id'], orders=data['orders'],cart=data['cart'])
+    return UserDB(user_id=data['user_id'], orders=data['orders'],cart=data['cart'], referrals=data['no_of_referrals'], discount_availed=data['discount_availed'], cart_last_updated=data['cart_last_updated'])
 
 p=0
 def add_to_cart(user_id, item_name, item_price, quantity):
     price = quantity * item_price
     cart = user_db.find_one({'user_id':user_id})
     exists=False
-    for item in cart['cart']:
+    for item in cart['cart']:   
         # print((item))
         if item['item']==item_name:
             # print((item['item']))
@@ -109,10 +110,13 @@ def add_to_cart(user_id, item_name, item_price, quantity):
         user_db.find_one_and_update({'user_id':user_id, 'cart':{'$elemMatch':{'item':item_name}}}, {'$inc':{'cart.$.quantity':int(quantity)}})
         user_db.find_one_and_update({'user_id':user_id, 'cart':{'$elemMatch':{'item':item_name}}}, {'$inc':{'cart.$.price':price}})
 
+    update_cart_last_updated_timestamp(user_id)
+
     return get_user(user_id)
 
 def remove_from_cart(user_id, item_name):
     user_db.find_one_and_update({'user_id':user_id, 'cart':{'$elemMatch':{'item':item_name}}}, {'$pull':{'cart':{'item':item_name}}})
+    update_cart_last_updated_timestamp(user_id)
     
 def get_cart(user_id):
     user = get_user(user_id)
@@ -137,6 +141,21 @@ def cart_total(cart):
 def cart_total_from_user(user_id):
     cart = get_cart(user_id)
     return cart_total(cart)
+
+def update_referrals(user_id):
+    user_db.find_one_and_update({'user_id':user_id}, {"$inc":{'no_of_referrals': 1}})
+    pass
+
+def avail_discount(user_id):
+    #reflect discount in total
+    user_db.find_one_and_update({'user_id':user_id}, {"$inc":{'discount_availed': 1}})
+    user_db.find_one_and_update({'user_id':user_id}, {"$set":{'no_of_referrals': 0}})
+
+def clear_cart(user_id):
+    user_db.find_one_and_update({'user_id':user_id}, {"$set":{'cart': []}})
+
+def update_cart_last_updated_timestamp(user_id):
+    user_db.find_one_and_update({'user_id':user_id}, {"$set":{"last_updated": datetime.datetime.utcnow()}})
     
 if __name__=='__main__':
     user_db.delete_many({})
@@ -155,7 +174,14 @@ if __name__=='__main__':
     u = get_user('123')
     print(u)
     cart = get_cart('123')
-    place_order(u.user_id, cart, 'my address', cart_total(cart), '123', 'cod')
+    place_order(u.user_id, cart, 'my address', cart_total(cart),'consumer1', '123', 'cod')
     print(order_db.find())
     print('^^^OrderDB >>> after order')
+    print(get_user('123'))
+    avail_discount(u.user_id)
+    print('^^^OrderDB >>> after discount')
+    print(get_user('123'))
+    update_referrals(u.user_id)
+    clear_cart(u.user_id)
+    print('^^^OrderDB >>> after clearing cart')
     print(get_user('123'))
