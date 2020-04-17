@@ -9,8 +9,8 @@ import datetime
 # clear cart
 # referral
 
-uri = os.getenv('uri')
-conn_password = os.getenv('dbpass')
+uri = "mongodb+srv://bot:<password>@botdb-sco3f.mongodb.net/test?retryWrites=true&w=majority"
+conn_password = "chachaji"
 conn_string = uri.replace("<password>", conn_password)
 
 client = pymongo.MongoClient(conn_string)
@@ -46,12 +46,13 @@ class UserDB:
 
 class Order:
 
-    def __init__(self, user_id, cart, address, total, contact, payment_id, delivered=False):
+    def __init__(self, user_id, cart, address, total, contact, name, payment_id, delivered=False):
         self.user_id = user_id
         self.items = cart
-        self.address = address
         self.total = total
+        self.address = address
         self.contact = contact
+        self.name = name
         self.pay_id = payment_id
         self.delivered = delivered
 
@@ -61,6 +62,7 @@ class Order:
             'items':self.items,
             'address':self.address,
             'contact':self.contact,
+            'name':self.name,
             'total':self.total,
             'pay_id':self.pay_id,
             'delivered':self.delivered
@@ -116,9 +118,9 @@ def get_cart(user_id):
     user = get_user(user_id)
     return user.cart
 
-def place_order(user_id, cart, address, total, contact, pay_id):
+def place_order(user_id, cart, address, total, contact, name, pay_id):
     user = get_user(user_id)
-    order = Order(user_id, cart, address, total, contact, pay_id)
+    order = Order(user_id, cart, address, total, contact, name, pay_id)
     order_id = order_db.insert_one(order.to_post()).inserted_id
     order.id = order_id
 
