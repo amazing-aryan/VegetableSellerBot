@@ -132,13 +132,20 @@ async def order_handler(event):
     else:
         SENDER = event.sender_id
         async with bot.conversation(SENDER) as conv:
-            await conv.send_message(f'Enter the address where delivery is to be made: ')
+            await conv.send_message(f'Enter the address where delivery is to be made: ', buttons=telethon.custom.Button.request_location('Please share your location', single_use=True))
             address = await conv.wait_event(message_event(SENDER))
-            address = address.message.text
+            geo_point = address.message.media.geo
+            address = str((geo_point.long, geo_point.lat))
+            print(address)
 
-            await conv.send_message(f'Enter your mobile number: ')
+            await conv.send_message(f'Enter your mobile number: ' )
             contact = await conv.wait_event(message_event(SENDER))
             contact = contact.message.text
+            print(contact)
+
+            await conv.send_message(f'Enter the name of the recepient: ' )
+            name = await conv.wait_event(message_event(SENDER))
+            name = name.message.text
 
             total = price+DELIVERY_CHARGE
             await conv.send_message(f'**Order amount:** KES{price}\n**Delivery Charges:** KES{DELIVERY_CHARGE}\n**Total:** {total}')
@@ -154,7 +161,7 @@ async def order_handler(event):
                 paid, payment_id = util.take_payment(SENDER, total)
                 if paid:
                     await conv.send_message('Your order is successful. Please wait for the delivery')
-                    userdb.place_order(SENDER, cart, address, total, contact, payment_id)
+                    userdb.place_order(SENDER, cart, address, total, contact, name, payment_id)
                 else:
                     await conv.send_message('Your payment was unsuccessful :(\nPlease try again')
             elif pay_option==2:
@@ -176,7 +183,7 @@ async def order_handler(event):
                     await conv.send_message('Wrong answer. Please try again.')
                 else:
                     await conv.send_message('Order placed. Please wait for your delivery')
-                    userdb.place_order(SENDER, cart, address, total, contact, 'cod')
+                    userdb.place_order(SENDER, cart, address, total, contact, name, 'cod')
 
 
 keep_alive()
